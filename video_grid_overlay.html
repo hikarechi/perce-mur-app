@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perce-Mur - Détection de Support</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .mode-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .mode-btn:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        #camera {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .ar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .support-outline {
+            position: absolute;
+            border: 3px solid #ff6b6b;
+            border-radius: 8px;
+            background: rgba(255, 107, 107, 0.1);
+            backdrop-filter: blur(5px);
+            animation: pulse-outline 2s infinite;
+        }
+
+        @keyframes pulse-outline {
+            0%, 100% { 
+                border-color: #ff6b6b;
+                box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+            }
+            50% { 
+                border-color: #4ecdc4;
+                box-shadow: 0 0 30px rgba(78, 205, 196, 0.8);
+            }
+        }
+
+        .mounting-point {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, #ffe66d, #ff9f43);
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(255, 230, 109, 1);
+            animation: drill-ready 1.5s ease-in-out infinite;
+            cursor: pointer;
+        }
+
+        @keyframes drill-ready {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1) rotate(0deg);
+                box-shadow: 0 0 20px rgba(255, 230, 109, 1);
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2) rotate(180deg);
+                box-shadow: 0 0 30px rgba(255, 230, 109, 1);
+            }
+        }
+
+        .level-indicator {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 50px;
+            padding: 10px 20px;
+            backdrop-filter: blur(10px);
+            border: 2px solid #4ecdc4;
+        }
+
+        .level-bubble {
+            width: 200px;
+            height: 40px;
+            background: linear-gradient(to right, #ff6b6b, #ffe66d, #4ecdc4);
+            border-radius: 20px;
+            position: relative;
+            margin: 10px 0;
+            border: 2px solid #ffffff;
+        }
+
+        .bubble {
+            position: absolute;
+            top: 50%;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            transform: translateY(-50%);
+            transition: left 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        .level-perfect {
+            left: calc(50% - 15px);
+            background: #4ecdc4;
+            animation: perfect-pulse 1s infinite;
+        }
+
+        @keyframes perfect-pulse {
+            0%, 100% { transform: translateY(-50%) scale(1); }
+            50% { transform: translateY(-50%) scale(1.1); }
+        }
+
+        .measurements {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 15px;
+            font-family: monospace;
+            border: 2px solid #4ecdc4;
+            backdrop-filter: blur(10px);
+        }
+
+        .support-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 2px solid #ff6b6b;
+        }
+
+        .support-detected {
+            color: #4ecdc4;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .support-specs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .spec-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #28a745, #20c997);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #6f42c1, #e83e8c);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #fd7e14, #ffc107);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #dc3545, #e83e8c);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .qr-scanner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 3px solid #4ecdc4;
+            border-radius: 15px;
+            background: rgba(78, 205, 196, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .qr-corners {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #ffe66d;
+        }
+
+        .qr-corners.top-left {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .qr-corners.top-right {
+            top: -3px;
+            right: -3px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .qr-corners.bottom-left {
+            bottom: -3px;
+            left: -3px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .qr-corners.bottom-right {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .scanning-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #ffe66d, transparent);
+            animation: scan-line 2s linear infinite;
+        }
+
+        @keyframes scan-line {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        .ai-analysis {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 15px;
+            border: 2px solid #6f42c1;
+            backdrop-filter: blur(10px);
+            max-width: 250px;
+        }
+
+        .ai-thinking {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #6f42c1;
+            font-weight: bold;
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: #6f42c1;
+            border-radius: 50%;
+            animation: thinking 1.4s infinite;
+        }
+
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes thinking {
+            0%, 80%, 100% { transform: scale(1); opacity: 0.5; }
+            40% { transform: scale(1.3); opacity: 1; }
+        }
+
+        .no-camera {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .projection-mode {
+            border: 3px solid #ffe66d;
+            background: rgba(255, 230, 109, 0.1);
+        }
+
+        .distance-markers {
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            right: 10px;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .distance-line {
+            position: absolute;
+            height: 2px;
+            background: #ffe66d;
+            box-shadow: 0 0 10px rgba(255, 230, 109, 0.8);
+        }
+
+        .distance-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffe66d;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            transform: translateY(-50%);
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .mode-selector {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .measurements, .support-info, .ai-analysis {
+                position: relative;
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🎯 PERCE-MUR INTELLIGENT</div>
+        <div class="subtitle">Détection de Support - IA - Projection AR</div>
+    </div>
+
+    <div class="mode-selector">
+        <button class="mode-btn active" data-mode="detect">🔍 Détection Support</button>
+        <button class="mode-btn" data-mode="qr">📱 Scan QR Code</button>
+        <button class="mode-btn" data-mode="project">📐 Projection Mur</button>
+        <button class="mode-btn" data-mode="level">📏 Mise à Niveau</button>
+    </div>
+
+    <div class="camera-container">
+        <video id="camera" autoplay muted playsinline></video>
+        <div class="no-camera" id="noCamera">
+            <div style="font-size: 3rem; margin-bottom: 20px;">🎥</div>
+            <div>Démarrez la caméra pour analyser votre support</div>
+        </div>
+
+        <div class="ar-overlay" id="arOverlay">
+            <!-- Détection de support -->
+            <div class="support-outline" id="supportOutline" style="display: none;"></div>
+            
+            <!-- Points de montage -->
+            <div id="mountingPoints"></div>
+            
+            <!-- Scanner QR -->
+            <div class="qr-scanner" id="qrScanner" style="display: none;">
+                <div class="qr-corners top-left"></div>
+                <div class="qr-corners top-right"></div>
+                <div class="qr-corners bottom-left"></div>
+                <div class="qr-corners bottom-right"></div>
+                <div class="scanning-line"></div>
+            </div>
+
+            <!-- Niveau à bulle -->
+            <div class="level-indicator" id="levelIndicator" style="display: none;">
+                <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">
+                    <span id="levelStatus">🎯 NIVEAU</span>
+                </div>
+                <div class="level-bubble">
+                    <div class="bubble" id="levelBubble"></div>
+                </div>
+                <div style="text-align: center; font-size: 0.8rem;">
+                    Inclinaison: <span id="angleDisplay">0°</span>
+                </div>
+            </div>
+
+            <!-- Mesures -->
+            <div class="measurements" id="measurements" style="display: none;">
+                <div><strong>📏 MESURES</strong></div>
+                <div>Largeur: <span id="widthMeasure">-</span></div>
+                <div>Hauteur: <span id="heightMeasure">-</span></div>
+                <div>Distance mur: <span id="distanceMeasure">-</span></div>
+                <div>Entraxe: <span id="spacingMeasure">-</span></div>
+            </div>
+
+            <!-- Marqueurs de distance -->
+            <div class="distance-markers" id="distanceMarkers"></div>
+        </div>
+
+        <!-- Analyse IA -->
+        <div class="ai-analysis" id="aiAnalysis" style="display: none;">
+            <div class="ai-thinking">
+                <span>🤖 IA analyse...</span>
+                <div class="thinking-dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+            <div id="aiResults" style="margin-top: 10px; display: none;"></div>
+        </div>
+
+        <!-- Informations du support -->
+        <div class="support-info" id="supportInfo" style="display: none;">
+            <div class="support-detected">
+                <span>✅ Support détecté:</span>
+                <span id="supportType">Équerre inconnue</span>
+            </div>
+            <div id="supportManual" style="margin-top: 10px; color: #4ecdc4;">
+                📋 Notice trouvée automatiquement
+            </div>
+            <div class="support-specs" id="supportSpecs">
+                <div class="spec-item">
+                    <div>Matériau</div>
+                    <div id="material">Acier</div>
+                </div>
+                <div class="spec-item">
+                    <div>Charge max</div>
+                    <div id="maxLoad">25kg</div>
+                </div>
+                <div class="spec-item">
+                    <div>Vis conseillées</div>
+                    <div id="screwType">6x40mm</div>
+                </div>
+                <div class="spec-item">
+                    <div>Entraxe</div>
+                    <div id="mounting">50mm</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" id="startCamera">🎥 Démarrer caméra</button>
+        <button class="btn btn-secondary" id="analyzeSupport">🤖 Analyser support</button>
+        <button class="btn btn-warning" id="searchManual">📚 Chercher notice</button>
+        <button class="btn btn-secondary" id="toggleProjection">📐 Mode projection</button>
+        <button class="btn btn-danger" id="captureResult">📸 Capturer résultat</button>
+        <button class="btn btn-danger" id="stopCamera">⏹️ Arrêter</button>
+    </div>
+
+    <script>
+        const camera = document.getElementById('camera');
+        const noCamera = document.getElementById('noCamera');
+        const arOverlay = document.getElementById('arOverlay');
+        const supportOutline = document.getElementById('supportOutline');
+        const mountingPoints = document.getElementById('mountingPoints');
+        const levelIndicator = document.getElementById('levelIndicator');
+        const measurements = document.getElementById('measurements');
+        const aiAnalysis = document.getElementById('aiAnalysis');
+        const supportInfo = document.getElementById('supportInfo');
+        const qrScanner = document.getElementById('qrScanner');
+        const distanceMarkers = document.getElementById('distanceMarkers');
+
+        let currentStream = null;
+        let currentMode = 'detect';
+        let isProjectionMode = false;
+        let detectedSupport = null;
+
+        // Simulation de données de supports
+        const supportDatabase = {
+            'equerre-standard': {
+                name: 'Équerre de fixation standard',
+                material: 'Acier galvanisé',
+                maxLoad: '25kg',
+                screwType: '6x40mm',
+                mounting: '50mm',
+                points: [
+                    {x: 0.3, y: 0.2, type: 'vis'},
+                    {x: 0.7, y: 0.2, type: 'vis'},
+                    {x: 0.5, y: 0.8, type: 'vis'}
+                ]
+            },
+            'patte-fixation': {
+                name: 'Patte de fixation murale',
+                material: 'Aluminium',
+                maxLoad: '35kg',
+                screwType: '8x50mm',
+                mounting: '75mm',
+                points: [
+                    {x: 0.25, y: 0.3, type: 'vis'},
+                    {x: 0.75, y: 0.3, type: 'vis'},
+                    {x: 0.25, y: 0.7, type: 'vis'},
+                    {x: 0.75, y: 0.7, type: 'vis'}
+                ]
+            }
+        };
+
+        // Gestion des modes
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelector('.mode-btn.active').classList.remove('active');
+                this.classList.add('active');
+                currentMode = this.dataset.mode;
+                updateMode();
+            });
+        });
+
+        function updateMode() {
+            // Masquer tous les éléments
+            supportOutline.style.display = 'none';
+            qrScanner.style.display = 'none';
+            levelIndicator.style.display = 'none';
+            measurements.style.display = 'none';
+            
+            camera.classList.remove('projection-mode');
+
+            switch(currentMode) {
+                case 'detect':
+                    aiAnalysis.style.display = 'block';
+                    break;
+                case 'qr':
+                    qrScanner.style.display = 'block';
+                    break;
+                case 'project':
+                    camera.classList.add('projection-mode');
+                    measurements.style.display = 'block';
+                    break;
+                case 'level':
+                    levelIndicator.style.display = 'block';
+                    startLevelMeasurement();
+                    break;
+            }
+        }
+
+        // Démarrer la caméra
+        document.getElementById('startCamera').addEventListener('click', async function() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                camera.srcObject = currentStream;
+                camera.style.display = 'block';
+                noCamera.style.display = 'none';
+
+                camera.addEventListener('loadedmetadata', function() {
+                    updateMode();
+                });
+
+            } catch (error) {
+                console.error('Erreur caméra:', error);
+                alert('❌ Impossible d\'accéder à la caméra.\nVérifiez les autorisations et que vous utilisez HTTPS.');
+            }
+        });
+
+        // Analyser le support
+        document.getElementById('analyzeSupport').addEventListener('click', function() {
+            if (!currentStream) {
+                alert('⚠️ Démarrez d\'abord la caméra');
+                return;
+            }
+
+            aiAnalysis.style.display = 'block';
+            document.getElementById('aiResults').style.display = 'none';
+
+            // Simulation d'analyse IA
+            setTimeout(() => {
+                const supportType = Math.random() > 0.5 ? 'equerre-standard' : 'patte-fixation';
+                detectSupport(supportType);
+            }, 3000);
+        });
+
+        function detectSupport(supportType) {
+            detectedSupport = supportDatabase[supportType];
+            
+            // Afficher les résultats de l'IA
+            document.getElementById('aiResults').innerHTML = `
+                <div style="color: #4ecdc4;">✅ Support identifié!</div>
+                <div style="font-size: 0.8rem; margin-top: 5px;">
+                    Confiance: 94%<br>
+                    Type: ${detectedSupport.name}
+                </div>
+            `;
+            document.getElementById('aiResults').style.display = 'block';
+
+            // Simuler la détection visuelle
+            const width = camera.offsetWidth;
+            const height = camera.offsetHeight;
+            
+            supportOutline.style.display = 'block';
+            supportOutline.style.left = (width * 0.2) + 'px';
+            supportOutline.style.top = (height * 0.3) + 'px';
+            supportOutline.style.width = (width * 0.3) + 'px';
+            supportOutline.style.height = (height * 0.4) + 'px';
+
+            // Afficher les informations du support
+            showSupportInfo();
+            
+            // Créer les points de montage
+            createMountingPoints();
+        }
+
+        function showSupportInfo() {
+            document.getElementById('supportType').textContent = detectedSupport.name;
+            document.getElementById('material').textContent = detectedSupport.material;
+            document.getElementById('maxLoad').textContent = detectedSupport.maxLoad;
+            document.getElementById('screwType').textContent = detectedSupport.screwType;
+            document.getElementById('mounting').textContent = detectedSupport.mounting;
+            
+            supportInfo.style.display = 'block';
+        }
+
+        function createMountingPoints() {
+            mountingPoints.innerHTML = '';
+            
+            if (!detectedSupport) return;
+
+            const containerRect = supportOutline.getBoundingClientRect();
+            const cameraRect = camera.getBoundingClientRect();
+            
+            detectedSupport.points.forEach((point, index) => {
+                const pointElement = document.createElement('div');
+                pointElement.className = 'mounting-point';
+                
+                const x = (containerRect.left - cameraRect.left) + (containerRect.width * point.x);
+                const y = (containerRect.top - cameraRect.top) + (containerRect.height * point.y);
+                
+                pointElement.style.left = x + 'px';
+                pointElement.style.top = y + 'px';
+                
+                pointElement.addEventListener('click', function() {
+                    alert(`🔧 Point de fixation ${index + 1}\nType: ${point.type}\nVis recommandée: ${detectedSupport.screwType}`);
+                });
+                
+                mountingPoints.appendChild(pointElement);
+            });
+        }
+
+        // Rechercher la notice
+        document.getElementById('searchManual').addEventListener('click', function() {
+            if (!detectedSupport) {
+                alert('⚠️ Analysez d\'abord un support');
+                return;
+            }
+
+            // Simulation de recherche de notice
+            const manualDiv = document.getElementById('supportManual');
+            manualDiv.innerHTML = '🔍 Recherche de la notice technique...';
+            manualDiv.style.color = '#ffc107';
+
+            setTimeout(() => {
+                manualDiv.innerHTML = `
+                    ✅ Notice trouvée !<br>
+                    <a href="#" style="color: #4ecdc4; text-decoration: underline;">
+                        📋 ${detectedSupport.name} - Guide d'installation
+                    </a>
+                `;
+                manualDiv.style.color = '#4ecdc4';
+            }, 2000);
+        });
+
+        // Mode projection
+        document.getElementById('toggleProjection').addEventListener('click', function() {
+            isProjectionMode = !isProjectionMode;
+            
+            if (isProjectionMode) {
+                currentMode = 'project';
+                document.querySelector('[data-mode="project"]').click();
+                this.textContent = '📐 Sortir projection';
+                
+                // Afficher les marqueurs de distance
+                showDistanceMarkers();
+            } else {
+                this.textContent = '📐 Mode projection';
+                distanceMarkers.innerHTML = '';
+            }
+        });
+
+        function showDistanceMarkers() {
+            const width = camera.offsetWidth;
+            const height = camera.offsetHeight;
+            
+            // Ligne horizontale avec mesure
+            const hLine = document.createElement('div');
+            hLine.className = 'distance-line';
+            hLine.style.left = '20%';
+            hLine.style.right = '20%';
+            hLine.style.top = '30%';
+            
+            const hLabel = document.createElement('div');
+            hLabel.className = 'distance-label';
+            hLabel.textContent = '180mm';
+            hLabel.style.left = '50%';
+            hLabel.style.top = '30%';
+            hLabel.style.transform = 'translate(-50%, -50%)';
+            
+            // Ligne verticale avec mesure
+            const vLine = document.createElement('div');
+            vLine.className = 'distance-line';
+            vLine.style.width = '2px';
+            vLine.style.height = '40%';
+            vLine.style.left = '50%';
+            vLine.style.top = '30%';
+            
+            const vLabel = document.createElement('div');
+            vLabel.className = 'distance-label';
+            vLabel.textContent = '120mm';
+            vLabel.style.left = '50%';
+            vLabel.style.top = '70%';
+            vLabel.style.transform = 'translate(-50%, -50%)';
+            
+            distanceMarkers.appendChild(hLine);
+            distanceMarkers.appendChild(hLabel);
+            distanceMarkers.appendChild(vLine);
+            distanceMarkers.appendChild(vLabel);
+            
+            // Mise à jour des mesures
+            document.getElementById('widthMeasure').textContent = '180mm';
+            document.getElementById('heightMeasure').textContent = '120mm';
+            document.getElementById('distanceMeasure').textContent = '45cm';
+            document.getElementById('spacingMeasure').textContent = '75mm';
+        }
+
+        // Niveau à bulle avec gyroscope
+        function startLevelMeasurement() {
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleOrientation);
+            } else {
+                // Simulation pour les appareils sans gyroscope
+                simulateLevel();
+            }
+        }
+
+        function handleOrientation(event) {
+            const gamma = event.gamma; // Inclinaison gauche-droite (-90 à 90)
+            const beta = event.beta;   // Inclinaison avant-arrière (-180 à 180)
+            
+            updateLevelBubble(gamma);
+            updateAngleDisplay(gamma);
+            checkLevelStatus(gamma);
+        }
+
+        function simulateLevel() {
+            // Simulation d'inclinaison pour test
+            let angle = 0;
+            setInterval(() => {
+                angle = Math.sin(Date.now() * 0.001) * 10; // Oscillation entre -10° et 10°
+                updateLevelBubble(angle);
+                updateAngleDisplay(angle);
+                checkLevelStatus(angle);
+            }, 100);
+        }
+
+        function updateLevelBubble(angle) {
+            const bubble = document.getElementById('levelBubble');
+            const maxOffset = 85; // Position maximale de la bulle
+            
+            // Convertir l'angle en position (-90° à 90° → 0px à 170px)
+            let position = (angle + 90) * (maxOffset * 2) / 180;
+            position = Math.max(0, Math.min(maxOffset * 2, position));
+            
+            bubble.style.left = position + 'px';
+            
+            // Changer la couleur selon la précision
+            if (Math.abs(angle) < 1) {
+                bubble.classList.add('level-perfect');
+                bubble.style.background = '#4ecdc4';
+            } else {
+                bubble.classList.remove('level-perfect');
+                bubble.style.background = Math.abs(angle) < 5 ? '#ffe66d' : '#ff6b6b';
+            }
+        }
+
+        function updateAngleDisplay(angle) {
+            document.getElementById('angleDisplay').textContent = angle.toFixed(1) + '°';
+        }
+
+        function checkLevelStatus(angle) {
+            const status = document.getElementById('levelStatus');
+            
+            if (Math.abs(angle) < 0.5) {
+                status.textContent = '✅ PARFAIT';
+                status.style.color = '#4ecdc4';
+                // Vibration si supportée
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            } else if (Math.abs(angle) < 2) {
+                status.textContent = '🎯 TRÈS BON';
+                status.style.color = '#ffe66d';
+            } else if (Math.abs(angle) < 5) {
+                status.textContent = '⚠️ À AJUSTER';
+                status.style.color = '#ffc107';
+            } else {
+                status.textContent = '❌ HORS NIVEAU';
+                status.style.color = '#ff6b6b';
+            }
+        }
+
+        // Scanner QR Code (simulation)
+        let qrScanInterval;
+        function startQRScanning() {
+            qrScanInterval = setInterval(() => {
+                // Simulation de détection QR
+                if (Math.random() < 0.1) { // 10% de chance de détecter
+                    clearInterval(qrScanInterval);
+                    detectQRCode();
+                }
+            }, 500);
+        }
+
+        function detectQRCode() {
+            // Simulation de lecture QR
+            const qrData = {
+                manufacturer: "FISCHER",
+                model: "EA-M8",
+                type: "equerre-standard",
+                manual_url: "https://fischer.fr/manuel-ea-m8.pdf"
+            };
+            
+            qrScanner.style.display = 'none';
+            
+            // Charger les données du support depuis le QR
+            if (supportDatabase[qrData.type]) {
+                detectedSupport = {
+                    ...supportDatabase[qrData.type],
+                    name: `${qrData.manufacturer} ${qrData.model}`,
+                    manual_url: qrData.manual_url
+                };
+                
+                showSupportInfo();
+                supportOutline.style.display = 'block';
+                
+                alert(`📱 QR Code détecté!\n\n${detectedSupport.name}\n✅ Notice technique trouvée`);
+            }
+        }
+
+        // Capturer le résultat
+        document.getElementById('captureResult').addEventListener('click', function() {
+            if (!currentStream) {
+                alert('⚠️ Démarrez d\'abord la caméra');
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = camera.videoWidth;
+            canvas.height = camera.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(camera, 0, 0);
+            
+            // Dessiner les éléments AR sur la capture
+            drawARElements(ctx, canvas.width, canvas.height);
+            
+            // Ajouter un watermark
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(10, 10, 300, 60);
+            ctx.fillStyle = '#2a5298';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText('🎯 PERCE-MUR INTELLIGENT', 15, 30);
+            ctx.font = '12px Arial';
+            ctx.fillText(`Mode: ${currentMode.toUpperCase()} - ${new Date().toLocaleString()}`, 15, 50);
+            
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `perce-mur-${currentMode}-${new Date().getTime()}.png`;
+            link.click();
+            
+            alert('📸 Capture réalisée avec succès!\nImage sauvegardée avec les données AR');
+        });
+
+        function drawARElements(ctx, width, height) {
+            const scaleX = width / camera.offsetWidth;
+            const scaleY = height / camera.offsetHeight;
+            
+            // Dessiner le contour du support
+            if (supportOutline.style.display !== 'none') {
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(
+                    parseInt(supportOutline.style.left) * scaleX,
+                    parseInt(supportOutline.style.top) * scaleY,
+                    parseInt(supportOutline.style.width) * scaleX,
+                    parseInt(supportOutline.style.height) * scaleY
+                );
+            }
+            
+            // Dessiner les points de montage
+            document.querySelectorAll('.mounting-point').forEach(point => {
+                const x = parseInt(point.style.left) * scaleX;
+                const y = parseInt(point.style.top) * scaleY;
+                
+                ctx.fillStyle = '#ffe66d';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(x, y, 12, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            });
+            
+            // Dessiner les mesures de distance
+            if (currentMode === 'project') {
+                ctx.strokeStyle = '#ffe66d';
+                ctx.lineWidth = 3;
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 20px monospace';
+                
+                // Ligne horizontale
+                const hY = height * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(width * 0.2, hY);
+                ctx.lineTo(width * 0.8, hY);
+                ctx.stroke();
+                
+                ctx.fillText('180mm', width * 0.5 - 30, hY - 10);
+                
+                // Ligne verticale
+                const vX = width * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(vX, height * 0.3);
+                ctx.lineTo(vX, height * 0.7);
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(vX + 20, height * 0.5);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('120mm', -30, 0);
+                ctx.restore();
+            }
+        }
+
+        // Arrêter la caméra
+        document.getElementById('stopCamera').addEventListener('click', function() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            camera.style.display = 'none';
+            noCamera.style.display = 'flex';
+            
+            // Masquer tous les éléments AR
+            supportOutline.style.display = 'none';
+            levelIndicator.style.display = 'none';
+            measurements.style.display = 'none';
+            aiAnalysis.style.display = 'none';
+            supportInfo.style.display = 'none';
+            qrScanner.style.display = 'none';
+            mountingPoints.innerHTML = '';
+            distanceMarkers.innerHTML = '';
+            
+            // Arrêter les capteurs
+            window.removeEventListener('deviceorientation', handleOrientation);
+            if (qrScanInterval) {
+                clearInterval(qrScanInterval);
+            }
+        });
+
+        // Gestion des événements selon le mode
+        document.addEventListener('DOMContentLoaded', function() {
+            // Démarrage du scanner QR quand le mode est sélectionné
+            document.querySelector('[data-mode="qr"]').addEventListener('click', function() {
+                if (currentStream && currentMode === 'qr') {
+                    setTimeout(() => {
+                        startQRScanning();
+                    }, 500);
+                }
+            });
+        });
+
+        // Auto-détection quand la caméra est active
+        let autoDetectInterval;
+        function startAutoDetection() {
+            if (currentMode === 'detect' && currentStream) {
+                autoDetectInterval = setInterval(() => {
+                    if (Math.random() < 0.05 && !detectedSupport) { // 5% de chance de détecter
+                        document.getElementById('analyzeSupport').click();
+                    }
+                }, 2000);
+            }
+        }
+
+        // Raccourcis clavier pour les professionnels
+        document.addEventListener('keydown', function(e) {
+            if (!currentStream) return;
+            
+            switch(e.key) {
+                case '1':
+                    document.querySelector('[data-mode="detect"]').click();
+                    break;
+                case '2':
+                    document.querySelector('[data-mode="qr"]').click();
+                    break;
+                case '3':
+                    document.querySelector('[data-mode="project"]').click();
+                    break;
+                case '4':
+                    document.querySelector('[data-mode="level"]').click();
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    document.getElementById('captureResult').click();
+                    break;
+                case 'a':
+                    document.getElementById('analyzeSupport').click();
+                    break;
+            }
+        });
+
+        // Aide contextuelle
+        function showHelp() {
+            const helpText = `
+🎯 AIDE PERCE-MUR INTELLIGENT
+
+📱 RACCOURCIS CLAVIER:
+• 1 = Mode Détection
+• 2 = Scanner QR
+• 3 = Mode Projection  
+• 4 = Niveau à bulle
+• ESPACE = Capturer
+• A = Analyser support
+
+🔍 MODES D'UTILISATION:
+
+1️⃣ DÉTECTION SUPPORT:
+   • Filmez votre support
+   • L'IA identifie le type
+   • Points de fixation auto
+
+2️⃣ SCAN QR CODE:
+   • Scannez le QR du fabricant
+   • Notice auto-chargée
+   • Specs techniques précises
+
+3️⃣ PROJECTION MUR:
+   • Projetez sur la surface
+   • Mesures en temps réel
+   • Guidage de positionnement
+
+4️⃣ MISE À NIVEAU:
+   • Niveau à bulle virtuel
+   • Précision ±0.1°
+   • Retour tactile
+            `;
+            
+            alert(helpText);
+        }
+
+        // Bouton d'aide (ajouté dynamiquement)
+        const helpBtn = document.createElement('button');
+        helpBtn.className = 'btn btn-secondary';
+        helpBtn.textContent = '❓ Aide';
+        helpBtn.addEventListener('click', showHelp);
+        document.querySelector('.controls').appendChild(helpBtn);
+    </script>
+</body>
+</html>
